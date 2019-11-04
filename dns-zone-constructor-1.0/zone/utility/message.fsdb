@@ -1,0 +1,4 @@
+#fsdb -F t msgid time srcip srcport dstip dstport protocol id
+1	0.1	1.1.1.1	12345	2.2.2.2	53	udp	123456
+2	0.2	2.2.2.2	53	1.1.1.1	12345	udp	123456
+# this is only for test#   | dbfilealter -F t

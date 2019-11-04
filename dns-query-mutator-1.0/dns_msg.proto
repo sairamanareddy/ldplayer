@@ -1,0 +1,15 @@
+syntax = "proto2";
+
+package trace_replay;
+
+message DNSMsg {
+  required int64 seconds = 1;
+  required int32 microseconds = 2;
+  required bool tcp = 3;
+  required bool ipv4 = 4;
+  optional bool response = 5;
+  required string src_ip = 6;
+  optional string dst_ip = 7;
+  required bytes raw = 8;
+  optional bool sync_time = 9;
+}
