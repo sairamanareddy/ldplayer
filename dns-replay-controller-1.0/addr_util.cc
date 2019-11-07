@@ -17,7 +17,11 @@
 
 #include "addr_util.h"
 #include <string.h>
+#include <assert.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <string>
 #include <err.h> //for err
 
 //is it IPv4 address?
@@ -106,4 +110,37 @@ uint16_t get_in_port(struct sockaddr *sa)
   else
     port = ((struct sockaddr_in6 *)sa)->sin6_port;
   return ntohs(port);
+}
+
+void fill_addr(struct addrinfo **addr, const char *ip, int port)
+{
+  *addr = NULL;
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_flags = AI_NUMERICSERV;
+  hints.ai_family = AF_UNSPEC;
+  struct sockaddr_in6 serveraddr;
+  if(inet_pton(AF_INET, ip, &serveraddr)){
+    //ipv4 address
+    hints.ai_family = AF_INET;
+    hints.ai_flags |= AI_NUMERICHOST;
+  }
+
+  else if(inet_pton(AF_INET6, ip, &serveraddr)){
+    //ipv6 address
+    hints.ai_family = AF_INET6;
+    hints.ai_flags |= AI_NUMERICHOST;
+  }
+
+  else{
+    err(1, "[error] ip [%s] is invalid, abort!", ip);
+  }
+
+  int rc = getaddrinfo(ip, std::to_string(port).c_str(), &hints, addr);
+  if(rc!=0){
+    if(rc==EAI_SYSTEM){
+    err(1, "[error] getaddrinfo() failed");
+    }
+  }
+  assert((*addr) != NULL);
 }

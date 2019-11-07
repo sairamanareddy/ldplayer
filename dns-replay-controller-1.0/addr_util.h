@@ -27,5 +27,6 @@ char *ip_b2s(const struct sockaddr *, char *, size_t);
 
 int get_in_addr(struct sockaddr *, char **);
 uint16_t get_in_port(struct sockaddr *);
+void fill_addr(struct addrinfo** addr, const char* ip, int port);
 
 #endif //ADDR_UTIL_H

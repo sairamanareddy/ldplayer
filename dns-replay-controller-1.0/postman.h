@@ -48,7 +48,7 @@ private:
 
   Filter client_filter;
   
-  struct sockaddr_in listen_addr;
+  struct addrinfo* listen_addr;
   struct event_base *base = NULL;
   struct bufferevent *skt_bev;
   

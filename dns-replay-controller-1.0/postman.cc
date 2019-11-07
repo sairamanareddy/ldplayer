@@ -318,17 +318,13 @@ void Postman::start()
   bufferevent_enable(skt_bev, EV_READ|EV_WRITE);
   
   //set listen address
-  memset(&listen_addr, 0, sizeof(struct sockaddr_in));
-  listen_addr.sin_family = AF_INET;
-  listen_addr.sin_port = htons(listen_port);
-  if (inet_aton(listen_ip.c_str(), &listen_addr.sin_addr) == 0)
-    err(1, "[error] listening ip [%s] is invalid", listen_ip.c_str());
+  fill_addr(&listen_addr, listen_ip.c_str(), listen_port);
 
   //create listener
   listener = evconnlistener_new_bind(base, accept_conn_cb_helper, this,
 				     LEV_OPT_CLOSE_ON_FREE|LEV_OPT_REUSEABLE, -1,
-				     (struct sockaddr*)&listen_addr,
-				     sizeof(listen_addr));
+				     listen_addr->ai_addr,
+				     listen_addr->ai_addrlen);
   if (!listener)
     err(1, "[error] cannot create listener");
   
