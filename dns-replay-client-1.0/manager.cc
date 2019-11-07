@@ -96,16 +96,17 @@ Manager::Manager(int n, bool d, string conn,
     assert(out_fs.is_open());
   }
 
-  if (dist) {  //fill in commander address, IPv4 only for now
+  if (dist) {  //fill in commander address,
     com_msg_buffer.clear();
     // please refer https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_72/rzab6/xip6client.htm 
+    // for more info (to support both ipv4 and ipv6)
 
     com_addr = NULL; // intially should set this to null
     struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
     struct sockaddr_in6 serveraddr;
     hints.ai_family = AI_NUMERICSERV;
     hints.ai_family = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
 
     if(inet_pton(AF_INET, command_ip.c_str(), &serveraddr)){
       // IPv4 address.
@@ -121,11 +122,10 @@ Manager::Manager(int n, bool d, string conn,
 
     else{
       // Invalid address.
-      err(1, "[error] commander ip [%s] is invalid", command_ip.c_str());
+      err(1, "[error] commander ip [%s] is invalid, abort!", command_ip.c_str());
     }
     int rc = getaddrinfo(command_ip.c_str(), std::to_string(command_port).c_str(), &hints, &com_addr);
     if(rc!=0){
-      err(1, "[error] host not found %s\n", gai_strerror(rc));
       if(rc==EAI_SYSTEM){
         err(1, "[error] getaddrinfo() failed\n");
       }

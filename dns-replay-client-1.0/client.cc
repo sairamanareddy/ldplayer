@@ -69,13 +69,36 @@ void recheck_now_ts (struct timeval *t)
 /*
   fill in address information
 */
-void fill_addr(struct sockaddr_in *addr, const char *ip, int port)
+void fill_addr(struct addrinfo **addr, const char *ip, int port)
 {
-  memset(addr, 0, sizeof(struct sockaddr_in));
-  addr->sin_family = AF_INET;
-  if (inet_aton(ip, &(addr->sin_addr)) == 0)
-    err(1, "[error] ip[%s] is invalid, abort!", ip);
-  addr->sin_port = htons(port);
+  *addr = NULL;
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_flags = AI_NUMERICSERV;
+  hints.ai_family = AF_UNSPEC;
+  struct sockaddr_in6 serveraddr;
+  if(inet_pton(AF_INET, ip, &serveraddr)){
+    //ipv4 address
+    hints.ai_family = AF_INET;
+    hints.ai_flags |= AI_NUMERICHOST;
+  }
+
+  else if(inet_pton(AF_INET6, ip, &serveraddr)){
+    hints.ai_family = AF_INET6;
+    hints.ai_flags |= AI_NUMERICHOST;
+  }
+
+  else{
+    err(1, "[error] ip [%s] is invalid, abort!", ip);
+  }
+
+  int rc = getaddrinfo(ip, std::to_string(port).c_str(), &hints, addr);
+  if(rc!=0){
+    if(rc==EAI_SYSTEM){
+    err(1, "[error] getaddrinfo() failed\n");
+    }
+  }
+  assert((*addr) != NULL);
 }
 
 DNSClient::DNSClient(string c, string g, int t, string s_ip, int s_port, int fd, uint32_t skt_unify, uint32_t opt, bool nw)
@@ -224,7 +247,7 @@ void DNSClient::start()
       evutil_closesocket(unified_udp_fd);
       log_err("evutil_make_socket_nonblocking fails: unified_udp_fd");
     }
-    if (connect (unified_udp_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    if (connect (unified_udp_fd, server_addr->ai_addr, server_addr->ai_addrlen) < 0)
       log_err("connect");
     LOG(LOG_DBG, "[%d] create unified_udp_fd [%d]\n", my_pid, unified_udp_fd);
 
@@ -573,7 +596,7 @@ void DNSClient::send_query_tcp(void *arg, bool use_tls)
   bev2src.insert(make_pair(bev, ip)); //insert to map
   server_msg_buffer.insert(make_pair(bev, ""));
   
-  if (bufferevent_socket_connect(bev, (struct sockaddr *)&server_addr, sizeof(server_addr))<0) {
+  if (bufferevent_socket_connect(bev, server_addr->ai_addr, server_addr->ai_addrlen)<0) {
     src2bev.erase(ip);
     bev2src.erase(bev);
     server_msg_buffer.erase(bev);
@@ -786,7 +809,7 @@ void DNSClient::send_query_udp(void *arg)
     //socket sockfd is of type SOCK_DGRAM, then addr is the address to
     //which datagrams are sent by default, and the only address from
     //which datagrams are received. => no connection -> no block?
-    if (connect (fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect (fd, server_addr->ai_addr, server_addr->ai_addrlen) < 0) {
       cerr << "error: connect fails:" << errno << endl;
       log_err("failed to connect for new UDP socket");
     }

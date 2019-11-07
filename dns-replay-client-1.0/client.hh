@@ -71,7 +71,7 @@ private:
   struct timeval start_real_ts = {0, 0};
   struct timeval shift_ts = {0, 0};
 
-  struct sockaddr_in server_addr;
+  struct addrinfo* server_addr;
   
   std::string conn_type;
   std::string nagle_option;
