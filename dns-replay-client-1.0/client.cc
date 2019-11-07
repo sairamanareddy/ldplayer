@@ -69,24 +69,13 @@ void recheck_now_ts (struct timeval *t)
 /*
   fill in address information
 */
-void fill_addr(struct sockaddr_storage *addr, const char *ip, int port)
+void fill_addr(struct sockaddr_in *addr, const char *ip, int port)
 {
-  memset(addr, 0, sizeof(struct sockaddr_storage));
-  struct sockaddr_in temp;
-  if(inet_pton(AF_INET, ip, &temp)){
-    addr->ss_family = AF_INET;
-    inet_pton(AF_INET, ip, addr->__ss_padding + sizeof(in_port_t));
-    memcpy(addr->__ss_padding, &port, sizeof(uint16_t));
-  }
-  else if(inet_pton(AF_INET6, ip, &temp)){
-    addr->ss_family = AF_INET6;
-    inet_pton(AF_INET6, ip, addr->__ss_padding + sizeof(in_port_t)+sizeof(uint32_t));
-    memcpy(addr->__ss_padding, &port, sizeof(uint16_t));
-  }
-  else{
+  memset(addr, 0, sizeof(struct sockaddr_in));
+  addr->sin_family = AF_INET;
+  if (inet_aton(ip, &(addr->sin_addr)) == 0)
     err(1, "[error] ip[%s] is invalid, abort!", ip);
-    return;
-  }
+  addr->sin_port = htons(port);
 }
 
 DNSClient::DNSClient(string c, string g, int t, string s_ip, int s_port, int fd, uint32_t skt_unify, uint32_t opt, bool nw)
