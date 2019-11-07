@@ -98,11 +98,40 @@ Manager::Manager(int n, bool d, string conn,
 
   if (dist) {  //fill in commander address, IPv4 only for now
     com_msg_buffer.clear();
-    memset(&com_addr, 0, sizeof(struct sockaddr_in));
-    com_addr.sin_family = AF_INET;
-    com_addr.sin_port = htons(command_port);
-    if (inet_aton(command_ip.c_str(), &com_addr.sin_addr) == 0)
+    // please refer https://www.ibm.com/support/knowledgecenter/ssw_ibm_i_72/rzab6/xip6client.htm 
+
+    com_addr = NULL; // intially should set this to null
+    struct addrinfo hints;
+    struct sockaddr_in6 serveraddr;
+    hints.ai_family = AI_NUMERICSERV;
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    if(inet_pton(AF_INET, command_ip.c_str(), &serveraddr)){
+      // IPv4 address.
+      hints.ai_family = AF_INET;
+      hints.ai_flags |= AI_NUMERICHOST;
+    }
+
+    else if (inet_pton(AF_INET6, command_ip.c_str(), &serveraddr)){
+      // IPv6 address.
+      hints.ai_family = AF_INET6;
+      hints.ai_flags |= AI_NUMERICHOST;
+    }
+
+    else{
+      // Invalid address.
       err(1, "[error] commander ip [%s] is invalid", command_ip.c_str());
+    }
+    int rc = getaddrinfo(command_ip.c_str(), std::to_string(command_port).c_str(), &hints, &com_addr);
+    if(rc!=0){
+      err(1, "[error] host not found %s\n", gai_strerror(rc));
+      if(rc==EAI_SYSTEM){
+        err(1, "[error] getaddrinfo() failed\n");
+      }
+    }
+    assert(com_addr != NULL);
+
   }
 }
 
@@ -303,7 +332,7 @@ void Manager::com_bevent_cb()
   
   com_bev = bufferevent_socket_new(evbase, -1, BEV_OPT_CLOSE_ON_FREE);
   assert(com_bev);
-  if (bufferevent_socket_connect(com_bev, (struct sockaddr *)&com_addr, sizeof(com_addr))<0) {
+  if (bufferevent_socket_connect(com_bev, com_addr->ai_addr, com_addr->ai_addrlen)<0) {
     bufferevent_free(com_bev);
     log_err("bufferevent_socket_connect fails");
   }
@@ -443,7 +472,7 @@ void Manager::main_event_loop()
     log_dbg("set up commander bufferevent");
     com_bev = bufferevent_socket_new(evbase, -1, BEV_OPT_CLOSE_ON_FREE);
     assert(com_bev);
-    if (bufferevent_socket_connect(com_bev, (struct sockaddr *)&com_addr, sizeof(com_addr))<0) {
+    if (bufferevent_socket_connect(com_bev, com_addr->ai_addr, com_addr->ai_addrlen)<0) {
       bufferevent_free(com_bev);
       log_err("bufferevent_socket_connect fails");
     }

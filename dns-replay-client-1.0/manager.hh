@@ -76,7 +76,7 @@ private:
   //output file
   std::ofstream out_fs;
 
-  struct sockaddr_in com_addr;
+  struct addrinfo* com_addr;
   struct bufferevent *com_bev = NULL;
   struct event_base *evbase = NULL;
 
