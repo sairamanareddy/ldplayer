@@ -20,6 +20,7 @@
 #include "dns_util.hh"
 #include <ldns/ldns.h>
 #include <iostream>
+#include <arpa/inet.h>
 #include <algorithm>
 #include <cassert>
 #include <cstring>
@@ -226,7 +227,11 @@ trace_replay::DNSMsg *InputSource::process_line(string line)
 
   //other information
   msg->set_tcp(v[5] == "tcp");
+  struct sockaddr_in6 addr;
+  if(inet_pton(AF_INET, v[1].c_str(), &addr))
   msg->set_ipv4(true);//v4 only for now
+  else if(inet_pton(AF_INET, v[1].c_str(), &addr))
+  msg->set_ipv4(false);
   
   return msg;
 }

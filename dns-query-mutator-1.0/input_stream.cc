@@ -19,6 +19,7 @@
 #include <iostream>
 #include <cassert>
 #include <algorithm>
+#include <arpa/inet.h>
 #include <vector>
 #include "dns_util.hh"
 #include "str_util.hh"
@@ -241,7 +242,11 @@ trace_replay::DNSMsg *InputStream::process_line(string line)
 
   //other information
   msg->set_tcp(v[5] == "tcp");
+  struct sockaddr_in6 addr;
+  if(inet_pton(AF_INET, v[1].c_str(), &addr))
   msg->set_ipv4(true);//v4 only for now
+  else if(inet_pton(AF_INET, v[1].c_str(), &addr))
+  msg->set_ipv4(false);
 
   return msg;
 }

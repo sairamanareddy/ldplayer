@@ -21,6 +21,7 @@
 //#include <netinet/ip.h>
 //#include <netinet/udp.h>
 //#include <netinet/tcp.h>
+#include "addr_util.h"
 #include <err.h>
 #include <string.h>
 #include "socket_util.h"
@@ -58,13 +59,17 @@ cksum (uint16_t *addr, int count)
 
 //create a raw socket, udp or tcp
 int
-create_raw_socket(int one)
+create_raw_socket(int one, bool v4flag)
 {
   int raw = -1;
-  if ((raw = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) < 0)
+  int __domain = v4flag ? AF_INET : AF_INET6;
+  int __level = v4flag ? IPPROTO_IP : IPPROTO_IPV6;
+  if ((raw = socket(__domain, SOCK_RAW, IPPROTO_RAW)) < 0)
     err(1, "SOCK_RAW");
-  if (setsockopt(raw, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one)) < 0)
+  if (setsockopt(raw, __level, IP_HDRINCL, &one, sizeof(one)) < 0)
     err(1, "setsockopt IP_HDRINCL");
+  if (!v4flag && (setsockopt(raw, __level, IPV6_V6ONLY, &one, sizeof(one)) < 0))
+    err(1, "setsockopt IPV6_V6ONLY");
   return raw;
 }
 
@@ -95,16 +100,13 @@ udp_tcp_cksum (uint8_t *pkt, uint16_t len, struct in_addr ip_src, struct in_addr
 //make a connection either for udp or tcp
 int mk_conn (const char *ip, int port, bool tcp)
 {
-  struct sockaddr_in sa;
+  struct addrinfo* sa;
+  fill_addr(&sa, ip, port);
   int fd = -1;
-  if ((fd = socket(AF_INET, tcp ? SOCK_STREAM : SOCK_DGRAM, 0)) == -1)
-    err(1, "socket");
-  memset (&sa, '\0', sizeof (sa));
-  sa.sin_family = AF_INET;
-  sa.sin_port = htons (port);
-  inet_pton (AF_INET, ip, &sa.sin_addr);
-  if (connect (fd, (struct sockaddr *) & sa, sizeof (sa)) < 0)
-    err(1, "connect");
+  if((fd = socket(sa->ai_family, tcp ? SOCK_STREAM : SOCK_DGRAM, 0)) == -1)
+    err(1, "socket in mk_conn");
+  if (connect (fd, sa->ai_addr, sa->ai_addrlen) < 0)
+    err(1, "connect in mk_conn");
   return fd;
 }
 

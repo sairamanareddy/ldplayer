@@ -85,6 +85,7 @@ Postman::~Postman()
 {
   if (out_fs.is_open())
     out_fs.close();
+  freeaddrinfo(listen_addr);
 }
 
 static void signal_cb(evutil_socket_t sig, short what, void *arg)

@@ -149,6 +149,7 @@ DNSClient::~DNSClient()
   if (ssl_ctx) {
     SSL_CTX_free(ssl_ctx);
   }
+  freeaddrinfo(server_addr);
 }
 
 void DNSClient::init_ssl()

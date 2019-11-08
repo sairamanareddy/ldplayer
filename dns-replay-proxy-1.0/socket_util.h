@@ -31,7 +31,7 @@ struct pseudo_hdr
 };
 
 int mk_conn (const char *, int, bool);
-int create_raw_socket(int);
+int create_raw_socket(int, bool v4flag);
 
 uint16_t cksum (uint16_t *, int);
 uint16_t udp_tcp_cksum (uint8_t *, uint16_t, struct in_addr, struct in_addr, uint8_t);

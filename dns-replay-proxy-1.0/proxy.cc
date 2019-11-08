@@ -28,6 +28,7 @@
 #include <cstdlib> //for exit
 
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 
@@ -67,13 +68,13 @@ DNSReplayProxy::DNSReplayProxy(string t, string a, string r, string p, int n): n
   packet_queue = NULL;
   
   //TODO IPv6 ::1, now it is IPv4 only
-  aut_addr = new addr_set(a, "::1", 53);
-  rec_addr = new addr_set(r, "::1", 53);
+  aut_addr = new addr_set(a, a, 53);
+  rec_addr = new addr_set(r, r, 53);
 
   if (proxy_type == "recursive") {
-    target_addr = new addr_set(a, "::1", 53);
+    target_addr = new addr_set(a, a, 53);
   } else if (proxy_type == "authoritative") {
-    target_addr = new addr_set(r, "::1", 53);
+    target_addr = new addr_set(r, r, 53);
   } else {
     errx(1, "[error] unknow proxy type [%s]", proxy_type.c_str());
   }
@@ -199,6 +200,7 @@ void process_packet_helper (uint8_t *pkt_orig, int len, int raw_fd,
   print_pkt_info(pkt, len);
 
   struct ip *ip = (struct ip *)&pkt[0];
+  struct ip6_hdr *ip6 = (struct ip6_hdr *)&pkt[0];
   if (ip->ip_v == 4) {
     ip->ip_src.s_addr = ip->ip_dst.s_addr;
     //ip->ip_dst.s_addr = target_addr->sin_addr.s_addr; //IPv4 only for now
@@ -206,31 +208,35 @@ void process_packet_helper (uint8_t *pkt_orig, int len, int raw_fd,
     ip->ip_sum = 0; //let the kernel compute checksum
     //ip->ip_sum = cksum((uint16_t *)pkt, len);
   } else if (ip->ip_v == 6) {//TODO
-    errx(1, "[error] IPv6 is not supported!");
-    //inet_pton(AF_INET, target_addr->cstr(true), &(ip->ip_dst));
+    //errx(1, "[error] IPv6 is not supported!");
+    ip6->ip6_src.__in6_u = ip6->ip6_dst.__in6_u;
+    inet_pton(AF_INET6, target_addr->cstr(false), &(ip6->ip6_dst));
+    if(!(ip6->ip6_nxt == 6 || ip6->ip6_nxt == 17)){
+      errx(1, "[error] IPv6 next header unknown:%d", ip6->ip6_nxt);
+    };
   }
 
   //after
   VLOG(3) << "[" << id << "] change address:";
   print_pkt_info(pkt, len);
 
-  if(ip->ip_p == IPPROTO_ICMP) {
+  if(ip->ip_v==4 && ip->ip_p == IPPROTO_ICMP) {
     VLOG(3) << "[" << id << "] ICMP: do nothing, only for testing";
-  } else if(ip->ip_p == IPPROTO_TCP) {
-    struct tcphdr *tcp = (struct tcphdr *)&pkt[20];
+  } else if((ip->ip_v==4 && ip->ip_p == IPPROTO_TCP) || (ip->ip_v==6 && ip6->ip6_nxt==6)) {
+    struct tcphdr *tcp = (struct tcphdr *)&pkt[(ip->ip_v==4) ? 20 : 40];
     VLOG(3) << "[" << id << "] TCP: src port=" << ntohs(tcp->source) << "\tdst port=" << ntohs(tcp->dest);
     tcp->check = htons(0);
-    tcp->check = udp_tcp_cksum(&pkt[20], len-20, ip->ip_src, ip->ip_dst, ip->ip_p);
-  } else if (ip->ip_p == IPPROTO_UDP) {
+    tcp->check = udp_tcp_cksum(&pkt[(ip->ip_v==4) ? 20 : 40], len-((ip->ip_v==4) ? 20 : 40), ip->ip_src, ip->ip_dst, ip->ip_p);
+  } else if ((ip->ip_v==4 && ip->ip_p == IPPROTO_UDP) || (ip->ip_v==6 && ip6->ip6_nxt==17)) {
     struct udphdr *udp = (struct udphdr *)&pkt[20];
     VLOG(3) << "[" << id << "] UDP src port=" << ntohs(udp->source) << "\tdst port=" << ntohs(udp->dest)
 	    << "\tudp len=" << ntohs(udp->len);
     udp->check = htons(0);
-    udp->check = udp_tcp_cksum(&pkt[20], len-20, ip->ip_src, ip->ip_dst, ip->ip_p);
+    udp->check = udp_tcp_cksum(&pkt[(ip->ip_v==4) ? 20 : 40], len-((ip->ip_v==4) ? 20 : 40), ip->ip_src, ip->ip_dst, ip->ip_p);
   }
 
   //IPv4 only for now
-  ssize_t send_len = sendto(raw_fd, pkt, len, 0, target_addr->addr(true), target_addr->addr_size(true));
+  ssize_t send_len = sendto(raw_fd, pkt, len, 0, target_addr->addr(ip->ip_v==4), target_addr->addr_size(ip->ip_v==4));
   if (send_len < 0) {
     err(1, "[%lu] [error] sendto raw return [%ld]", id, send_len);
   }
@@ -294,7 +300,7 @@ void DNSReplayProxy::start()
   
   LOG(INFO) << "create " << num_threads << " threads to process the packets";
   for (int i=0; i<num_threads; i++) {
-    int fd = create_raw_socket(1);
+    int fd = create_raw_socket(1, ipv4_addr(this->target_addr->cstr(true)) ? true : false);
     raw_fd.push_back(fd);
     threads.push_back(thread(&DNSReplayProxy::process_packet, this, fd));
   }
