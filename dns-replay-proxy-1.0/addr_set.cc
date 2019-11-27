@@ -23,10 +23,10 @@ using namespace std;
 
 addr_set::addr_set(string v4s, string v6s, uint16_t p)
 {
-  if (!ipv4_addr(v4s.c_str()))
-    errx(1, "[error] [%s] is not a valid IPv4 address!", v4s.c_str());
-  if (!ipv6_addr(v6s.c_str()))
-    errx(1, "[error] [%s] is not a valid IPv6 address!", v6s.c_str());
+  if (!ipv4_addr(v4s.c_str()) && !ipv6_addr(v6s.c_str()))
+  errx(1, "[error] [%s] / [%s] is not a valid IPv4 or IPv6 address!", v4s.c_str(), v6s.c_str());
+  // if (!ipv6_addr(v6s.c_str()))
+  //   errx(1, "[error] [%s] is not a valid IPv6 address!", v6s.c_str());
   if (p == 0)
     errx(1, "[error] port number must be > 0!");
 

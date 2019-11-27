@@ -68,13 +68,13 @@ DNSReplayProxy::DNSReplayProxy(string t, string a, string r, string p, int n): n
   packet_queue = NULL;
   
   //TODO IPv6 ::1, now it is IPv4 only
-  aut_addr = new addr_set(a, a, 53);
-  rec_addr = new addr_set(r, r, 53);
+  aut_addr = ipv4_addr(a.c_str()) ? new addr_set(a, "::1", 53) : new addr_set("127.0.0.1", a, 53);
+  rec_addr = ipv4_addr(r.c_str()) ? new addr_set(r, "::1", 53) : new addr_set("127.0.0.1", r, 53);
 
   if (proxy_type == "recursive") {
-    target_addr = new addr_set(a, a, 53);
+    target_addr = ipv4_addr(a.c_str()) ? new addr_set(a, "::1", 53) : new addr_set("127.0.0.1", a, 53);
   } else if (proxy_type == "authoritative") {
-    target_addr = new addr_set(r, r, 53);
+    target_addr = ipv4_addr(r.c_str()) ? new addr_set(r, "::1", 53) : new addr_set("127.0.0.1", r, 53);
   } else {
     errx(1, "[error] unknow proxy type [%s]", proxy_type.c_str());
   }
