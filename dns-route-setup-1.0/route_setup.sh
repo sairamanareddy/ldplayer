@@ -25,9 +25,9 @@ usage() {
 TABLE=12
 MARK=12
 TUN=dnstun
-INT=eth4
+INT=enp0s3
 FUNC=""
-TUNADDR="2405:8a00:4001:17:0:0:0:3/64"
+TUNADDR=2405:8a00:4001:17::3/64
 
 while getopts ":t:m:n:i:f:h" opt; do
     case $opt in
@@ -87,7 +87,7 @@ echo "tun  : $TUN"
 #sudo ifconfig $TUN down
 echoerr "[info] tun is up"
 sudo ip -6 tuntap add dev $TUN mode tun
-sudo ifconfig $TUN $TUNADDR up
+sudo ip -6 addr add $TUNADDR dev $TUN
 
 # make the packets
 # from r, dport 53 to tun

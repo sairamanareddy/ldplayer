@@ -7,13 +7,13 @@ px_exe="dns-replay-proxy"
 # recursive server
 rec_name=""
 rec_addr="10.1.1.3"
-rec_interface="eth4"
+rec_interface="enp0s3"
 rec_port="53"
 
 # authoritative server
 auth_name=""
 auth_addr="10.1.1.4"
-auth_interface="enp0s25"
+auth_interface="enp0s3"
 auth_port="53"
 
 # used in exp_setup_route_proxy.sh
