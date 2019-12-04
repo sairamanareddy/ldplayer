@@ -27,6 +27,7 @@ MARK=12
 TUN=dnstun
 INT=eth4
 FUNC=""
+TUNADDR="2405:8a00:4001:17:0:0:0:3/64"
 
 while getopts ":t:m:n:i:f:h" opt; do
     case $opt in
@@ -71,7 +72,8 @@ if [ "$FUNC" != "recursive" ] && [ "$FUNC" != "authoritative" ] ; then
 fi
 
 # get the src ip address
-MYIP=`ifconfig $INT | grep "inet addr:" | cut -d : -f 2 | cut -d ' ' -f 1`
+# MYIP4=`ifconfig $INT | grep "inet addr:" | cut -d : -f 2 | cut -d ' ' -f 1`
+MYIP=`ifconfig $INT | grep "inet6 addr:" | gawk -F': ' '{ print $2 }' | gawk -F' ' '{ print $1 }' | gawk -F '/' '{ print $1 }' | head -n 1`
 if [ -z $MYIP ] ; then
     echoerr "[error] default interface does not work, try -i INT"
     exit 1
@@ -83,8 +85,8 @@ echo "tun  : $TUN"
 # bring up tunnel
 #sudo ifconfig $TUN down
 echoerr "[info] tun is up"
-sudo ip tuntap add dev $TUN mode tun
-sudo ifconfig $TUN 172.16.0.1/16 up
+sudo ip -6 tuntap add dev $TUN mode tun
+sudo ifconfig $TUN $TUNADDR up
 
 # make the packets
 # from r, dport 53 to tun
@@ -94,21 +96,21 @@ if [ "$FUNC" == "recursive" ] ; then
     WP="dport"
 fi
 echoerr "[info] set port-based routing"
-sudo iptables -A OUTPUT -t mangle -p udp -s $MYIP --${WP} 53 -j MARK --set-mark $MARK
-sudo iptables -A OUTPUT -t mangle -p tcp -s $MYIP --${WP} 53 -j MARK --set-mark $MARK
+sudo ip6tables -A OUTPUT -t mangle -p udp -s $MYIP --${WP} 53 -j MARK --set-mark $MARK
+sudo ip6tables -A OUTPUT -t mangle -p tcp -s $MYIP --${WP} 53 -j MARK --set-mark $MARK
 
 # set up routing rule
-sudo ip route add default via 172.16.0.1 dev $TUN table $TABLE
-sudo ip rule add from $MYIP fwmark $MARK table $TABLE
+sudo ip -6 route add default via $TUNADDR dev $TUN table $TABLE
+sudo ip -6 rule add from $MYIP fwmark $MARK table $TABLE
 
 # show info
 echoerr "ip rule:"
-ip rule show | grep $TABLE
+ip -6 rule show | grep $TABLE
 
 echoerr "\ntable:"
-ip route show table $TABLE
+ip -6 route show table $TABLE
 
 echoerr "\niptables:"
-sudo iptables -L -t mangle
+sudo ip6tables -L -t mangle
 
 exit 0
