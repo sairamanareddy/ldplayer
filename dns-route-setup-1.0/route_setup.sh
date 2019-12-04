@@ -73,7 +73,8 @@ fi
 
 # get the src ip address
 # MYIP4=`ifconfig $INT | grep "inet addr:" | cut -d : -f 2 | cut -d ' ' -f 1`
-MYIP=`ifconfig $INT | grep "inet6 addr:" | gawk -F': ' '{ print $2 }' | gawk -F' ' '{ print $1 }' | gawk -F '/' '{ print $1 }' | head -n 1`
+MYIP=`ip addr show $INT | grep "inet6" | gawk -F ' ' '{ print $2 }' | head -n 1`
+echo $MYIP
 if [ -z $MYIP ] ; then
     echoerr "[error] default interface does not work, try -i INT"
     exit 1
